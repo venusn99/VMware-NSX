@@ -1,2 +1,2 @@
 # NSX
-This repository is written to help filed members to easy some repetitive task
+This repository is written to help field members to ease the tasks.
