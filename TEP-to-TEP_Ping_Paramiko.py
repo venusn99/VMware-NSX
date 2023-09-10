@@ -2,7 +2,7 @@ import paramiko
 import re
 import time
 import getpass
-import o
+import os
 commands = ["get interfaces | find IP/Mask", "get neighbor | find IP", "get stats"] # changing the commands here would break the script. Be sure on the changes you are making.
 T_width=os.get_terminal_size().columns # extracting local machines terminal width size
 T_height=os.get_terminal_size().lines # extracting local machines terminal height size
