@@ -2,7 +2,10 @@ import paramiko
 import re
 import time
 import getpass
+import os
 commands = ["get interfaces | find IP/Mask", "get neighbor | find IP", "get stats"] # changing the commands here would break the script. Be sure on the changes you are making.
+T_width=os.get_terminal_size().columns # extracting local machines terminal width size
+T_height=os.get_terminal_size().lines # extracting local machines terminal height size
 def main():
     edge_ip = input("Enter an Edge IP address,(no plural)\n") #enter the Edge IP, only provide 1 IP address
     username = "admin" # change the username accordingly
@@ -86,7 +89,7 @@ def tep_to_tep_ping(ssh_connection, src_ip, dst_ip):
     try:
         output = ""
         combined_ping = []
-        ssh_shell = ssh_connection.invoke_shell() # shell invoked
+        ssh_shell = ssh_connection.invoke_shell(width=T_width, height=T_height) # shell invoked with local terminal screen size
         print("Shell invoke successfultep_to_tep_ping()")
         ssh_shell.send("vrf 0\n") # executing this command as the exit logic is difficult
         print("VRF 0 sent")
