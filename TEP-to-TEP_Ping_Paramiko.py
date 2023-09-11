@@ -34,7 +34,7 @@ def ssh_connect(ip, port, username, password,timeout_ssh):
 def get_src_tep(ssh_connection):
     try:
         output_buffer = ""
-        ssh_shell = ssh_connection.invoke_shell() # shell invoked
+        ssh_shell = ssh_connection.invoke_shell(width=T_width, height=T_height) # shell invoked with local terminal screen size
         print("Shell invoke successful get_src_tep()")
         ssh_shell.send("vrf 0\n") # executing this command as the exit logic is difficult
         print("VRF 0 sent")
@@ -61,7 +61,7 @@ def get_src_tep(ssh_connection):
 def get_dst_tep(ssh_connection):
     try:
         output_buffer = ""
-        ssh_shell = ssh_connection.invoke_shell() # shell invoked
+        ssh_shell = ssh_connection.invoke_shell(width=T_width, height=T_height) # shell invoked with local terminal screen size
         print("Shell invoke successful get_dst_tep()")
         ssh_shell.send("vrf 0\n") # executing this command as the exit logic is difficult
         print("VRF 0 sent")
