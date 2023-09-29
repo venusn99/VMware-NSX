@@ -5,6 +5,8 @@ import getpass
 import os
 import sys
 import threading
+import logging
+import datetime
 
 start_time = time.time() #getting start time
 
@@ -13,6 +15,7 @@ T_width=os.get_terminal_size().columns # extracting local machines terminal widt
 T_height=os.get_terminal_size().lines # extracting local machines terminal height size
 src_tep_ips = []
 dst_tep_ips = []
+log_file = datetime.datetime.now().strftime('tep2tep_ping_%d%m%y_%H_%M_%S.log') #log file name to send the output to logfile from functions.
 def main():
     edge_ip = input("Enter an Edge IP address,(no plural)\n") #enter the Edge IP, only provide 1 IP address
     username = "admin" # change the username accordingly
@@ -112,7 +115,7 @@ def tep_to_tep_ping(ssh_connection, src_ip, dst_ip):
         output = ""
         combined_ping = []
         ssh_shell = ssh_connection.invoke_shell(width=T_width, height=T_height) # shell invoked with local terminal screen size
-        print("Shell invoke successfultep_to_tep_ping()")
+        print("Shell invoke successful tep_to_tep_ping()")
         ssh_shell.send("vrf 0\n") # executing this command as the exit logic is difficult
         print("VRF 0 sent")
         ssh_shell.recv(4096) # wait for data to receive 
@@ -139,19 +142,45 @@ def tep_to_tep_ping(ssh_connection, src_ip, dst_ip):
                         time.sleep(0.3)  #sleeping to finish the complete ping output
                         count = count+1
                         break
-                output += new_data  # This variable has ping output
+                output += new_data  # This variable has ping output streamed.
                 #print("**********------------------********** The output is ***********_________________***********\n",new_data)
             print(output)  # Printing TEP_TO_TEP ping output
             print("The count of Ping commands is :", len(combined_ping))
             print("The count of ping output is: ",count)
+            print(f"Total time taken is to complete is: {time.time()-start_time} Seconds")
+            logging_func(output) #sending TEP to TEP ping output to log file
+            if input("Do you want to summarize the TEP-to-TEP output? (Y/N)\n") == 'Y':
+                summarize_TEP_ping(output)
         else:
             print("Sorry I couldn't construct the Ping as the I didn't get the IPs")
         
     except Exception as e:
-        print(f"Exception occured(tep_to_tep_pig) {str(e)}")
+        print(f"Exception occured(tep_to_tep_ping) {str(e)}")
     finally:
         ssh_shell.close()
         print("Interactive SSH shell closed (tep_to_tep_ping)")
+def summarize_TEP_ping(f_cont):
+    logme=''
+    #print(f_cont)
+    print("---------TEP_to_TEP_Ping Summary-------------------\n")
+    match_header = re.findall(r'(ping \d+\.\d+\.\d+.\d+ source \d+\.\d+\.\d+.\d+ .*)', f_cont)
+    #match_output = re.search(r'(\d+ packets transmitted, \d+ packets received, \d+.\d+% packet loss)', f_cont) #
+    match_output = re.findall(r'(\d+) packets transmitted, (\d+) packets received, (\d+.\d+)% packet loss', f_cont)
+    for i in range (len(match_output)):
+        #is where you are modifying the code to send the output to logfile and also print
+        #print(f"{i+1} {match_header[i]}")
+        logme += f"\n{i+1} {match_header[i]}\n"
+        #print(match_output[i]) #this will print whole "sent , received and loss" from ping output
+        if int(match_output[i][0]) % int(match_output[i][1]) > 0.0:
+            #print("     Alert: Packet loss found below")
+            logme += "     Alert: Packet loss found below"
+        #print(f"    Sent {match_output[i][0]}, Received {match_output[i][1]}, Lost %: {match_output[i][2]} \n") #replace of this is "logme variable"
+        logme += f"    Sent {match_output[i][0]}, Received {match_output[i][1]}, Lost %: {match_output[i][2]} \n"
+    print(logme)
+    logging_func(logme) #sending cont of log variable to logger function
+def logging_func(log_cont):
+        logging.basicConfig(level=logging.DEBUG, filename=log_file, filemode="a+",format="%(asctime)-15s %(levelname)-8s %(message)s")
+        logging.info(log_cont)
 # The function will close the SSH of edge host
 def ssh_close(ssh_connection):
     try:
@@ -161,4 +190,3 @@ def ssh_close(ssh_connection):
         print(f"Failed to close ssh connection exception occured {str(e)} ")
 if __name__ == "__main__":
     main()
-print(f"Total time taken is to complete is: {time.time()-start_time} Seconds")
