@@ -3,21 +3,37 @@ import re
 import time
 import getpass
 import os
+import sys
+import threading
+
+start_time = time.time() #getting start time
+
 commands = ["get interfaces | find IP/Mask", "get neighbor | find IP", "get stats"] # changing the commands here would break the script. Be sure on the changes you are making.
 T_width=os.get_terminal_size().columns # extracting local machines terminal width size
 T_height=os.get_terminal_size().lines # extracting local machines terminal height size
+src_tep_ips = []
+dst_tep_ips = []
 def main():
     edge_ip = input("Enter an Edge IP address,(no plural)\n") #enter the Edge IP, only provide 1 IP address
     username = "admin" # change the username accordingly
-    print("Username \"admin\" is considered as default.")
+    delay_print="Username \"admin\" is considered as default."
+    for c in delay_print:
+        sys.stdout.write(c)
+        sys.stdout.flush()
+        time.sleep(0.03)
+    print()
     #password = input("Enter the SSH password for Edge") #provide the password here
     password = getpass.getpass("Enter the SSH password for Edge\n") #hiding the password entry
     port = 22
     timeout_seconds = 120 # if you see get a Socket timeout error increase the value to the approx time required to execute the commands.
     ssh_connection = ssh_connect(edge_ip, port, username, password,timeout_seconds)
-    src_tep_ips = get_src_tep(ssh_connection) # you have got the Edge TEPs from this function :)
-    dst_tep_ips = get_dst_tep(ssh_connection) # you have got the neighbor TEPs from this function :)
-    #print("-------------------------\n",src_tep_ips,dst_tep_ips)
+    src_tep_thread = threading.Thread(target=get_src_tep,kwargs={'ssh_connection':ssh_connection})
+    dst_tep_thread = threading.Thread(target=get_dst_tep,kwargs={'ssh_connection':ssh_connection})
+    src_tep_thread.start()
+    dst_tep_thread.start()
+    src_tep_thread.join()
+    dst_tep_thread.join()
+    print("-------------------------\n",src_tep_ips,dst_tep_ips)
     tep_to_tep_ping(ssh_connection, src_tep_ips, dst_tep_ips)
     ssh_close(ssh_connection)
 # The function will SSH into the edge host
@@ -51,7 +67,9 @@ def get_src_tep(ssh_connection):
         tep_ips = re.findall(r'(\d+.\d+.\d+.\d+)', str(src_tep_buffer)) #filtering only IP and excluding "IP/Mask"
         #print(tep_ips) #open tap to flow the data
         print("source TEP IPs are: ", tep_ips)
-        return tep_ips
+        global src_tep_ips 
+        src_tep_ips = tep_ips # sending Source tep IPs to global variable
+        return None
     except Exception as e:
         print(f"Failed to invoke shell {str(e)} ")
     finally:
@@ -79,7 +97,11 @@ def get_dst_tep(ssh_connection):
         tep_ips = re.findall(r'(\d+.\d+.\d+.\d+)', str(dst_tep_buffer)) #filtering only IP and excluding "IP/Mask"
         #print(tep_ips) #open tap to flow the data
         print("Neighbor TEP IPs are: ", tep_ips)
-        return tep_ips
+        uniq_dst_tep_ips = list(set(tep_ips)) # prints unique tep IPs
+        print(f"The unique neighbor TEP IPs are: {uniq_dst_tep_ips} ") # Translating to set to get unique values and convert back to list to preserve the orginal order
+        global dst_tep_ips 
+        dst_tep_ips = uniq_dst_tep_ips # sending destination tep IPs to global variable
+        return None
     except Exception as e:
         print(f"Failed to invoke shell {str(e)} ")
     finally:
@@ -95,8 +117,8 @@ def tep_to_tep_ping(ssh_connection, src_ip, dst_ip):
         print("VRF 0 sent")
         ssh_shell.recv(4096) # wait for data to receive 
         #composing ping command for TEP to TEP Ping
-        for destination in dst_ip:
-            for source in src_ip:
+        for destination in set(dst_ip): # converting to set to filter with unique values
+            for source in set(src_ip):  # converting to set to filter with unique values
                 if destination != source:  # Ensure you're not pinging the same IP
                     ping_command = f"ping {destination} source {source} repeat 3 dfbit enable size 1650" #update the repeat, dfbit , size  values according to requirement
                     final_ping_command = ping_command + "\n"
@@ -114,9 +136,11 @@ def tep_to_tep_ping(ssh_connection, src_ip, dst_ip):
         #ssh_shell.send('ping 8.8.8.8 repeat 3\n')
                     new_data += ssh_shell.recv(65535).decode("utf-8")
                     if "ping statistics" in new_data:
+                        time.sleep(0.3)  #sleeping to finish the complete ping output
                         count = count+1
                         break
-                output += new_data
+                output += new_data  # This variable has ping output
+                #print("**********------------------********** The output is ***********_________________***********\n",new_data)
             print(output)  # Printing TEP_TO_TEP ping output
             print("The count of Ping commands is :", len(combined_ping))
             print("The count of ping output is: ",count)
@@ -137,3 +161,4 @@ def ssh_close(ssh_connection):
         print(f"Failed to close ssh connection exception occured {str(e)} ")
 if __name__ == "__main__":
     main()
+print(f"Total time taken is to complete is: {time.time()-start_time} Seconds")
