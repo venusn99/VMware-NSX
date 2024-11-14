@@ -14,8 +14,6 @@ start_time = time.time() #getting start time
 
 T_width=os.get_terminal_size().columns # extracting local machines terminal width size
 T_height=os.get_terminal_size().lines # extracting local machines terminal height size
-src_tep_ips = []
-dst_tep_ips = []
 log_file = datetime.datetime.now().strftime('test_tep2tep_ping_%d%m%y_%H_%M_%S.log') #log file name to send the output to logfile from functions.
 # Requirements and pre-checks function
 def main():
@@ -38,6 +36,8 @@ def main():
                 print(counter)
                 time.sleep(1)
                 counter -= counter
+            src_tep_ips = input("Enter the Source IP address, Comma Seperated")
+            dst_tep_ips = input("Enter the Destination IP address, Comma Seperated ")
             print("-------------------------\n","source TEPS: ",src_tep_ips,"\n","destination TEPS: ", dst_tep_ips)
             tep_to_tep_ping(ssh_connection, src_tep_ips, dst_tep_ips)
             ssh_close(ssh_connection)
